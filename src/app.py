@@ -5,21 +5,49 @@ A super simple FastAPI application that allows students to view and sign up
 for extracurricular activities at Mergington High School.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, status
+from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 import os
 from pathlib import Path
 
 app = FastAPI(title="Mergington High School API",
-              description="API for viewing and signing up for extracurricular activities")
+              description="API for viewing and signing up for extracurricular activities, with user registration and login")
 
 # Mount the static files directory
 current_dir = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=os.path.join(Path(__file__).parent,
           "static")), name="static")
 
+ # In-memory user database
+users = {}
+
+# User registration/login models
+class UserRegister(BaseModel):
+    email: str
+    password: str
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
 # In-memory activity database
+@app.post("/register", status_code=status.HTTP_201_CREATED)
+def register_user(user: UserRegister):
+    """Register a new user with email and password"""
+    if user.email in users:
+        raise HTTPException(status_code=400, detail="User already exists")
+    users[user.email] = user.password
+    return {"message": f"User {user.email} registered successfully"}
+
+
+@app.post("/login")
+def login_user(user: UserLogin):
+    """Login a user with email and password"""
+    if user.email not in users or users[user.email] != user.password:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    return {"message": f"User {user.email} logged in successfully"}
 activities = {
     "Chess Club": {
         "description": "Learn strategies and compete in chess tournaments",
